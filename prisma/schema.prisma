@@ -1,0 +1,111 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+
+  email   String  @unique()
+  hash    String
+  isAdmin Boolean @default(false)
+
+  fullName String?
+
+  fileEvents        FileEvent[]
+  files             File[]             @relation("files_user_created")
+  checkedInFiles    File[]             @relation("files_user_checkedIn")
+  folders           Folder[]
+  folderPermissions FolderPermission[]
+
+  @@map("users")
+}
+
+enum EventName {
+  updated
+  deleted
+  created
+  checkedin
+  checkedout
+  checkedout_automatic
+}
+
+model FileEvent {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  //enum: updated , deleted , created, checkedin, checkedout
+  eventName EventName
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fileId Int
+  file   File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@map("fileEvents")
+}
+
+model File {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  title       String?
+  isAvailable Boolean @default(true)
+  link        String?
+
+  fileEvent FileEvent[]
+
+  userId Int
+  user   User @relation("files_user_created", fields: [userId], references: [id], onDelete: Cascade)
+
+  checkedInUserId Int?
+  checkedInUser   User?     @relation("files_user_checkedIn", fields: [checkedInUserId], references: [id], onDelete: Cascade)
+  checkedInAt     DateTime?
+  folder          Folder    @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  folderId        Int
+
+  @@map("files")
+}
+
+model Folder {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  title String?
+
+  files             File[]
+  folderPermissions FolderPermission[]
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("folders")
+}
+
+model FolderPermission {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  folder   Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  folderId Int
+
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+
+  @@unique([userId, folderId])
+  @@map("folderPermissions")
+}
